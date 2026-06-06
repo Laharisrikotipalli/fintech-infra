@@ -4,20 +4,6 @@ A production-grade Infrastructure as Code project simulating a secure fintech pa
 
 ---
 
-## Table of Contents
-
-- [Architecture Overview](#architecture-overview)
-- [Project Structure](#project-structure)
-- [Prerequisites](#prerequisites)
-- [Quick Start](#quick-start)
-- [Step-by-Step Setup](#step-by-step-setup)
-- [Terraform Workspaces](#terraform-workspaces)
-- [Compliance Script](#compliance-script)
-- [End-to-End Test](#end-to-end-test)
-- [Environment Variables](#environment-variables)
-
----
-
 ## Architecture Overview
 
 An event-driven, serverless workflow for processing payment events:
