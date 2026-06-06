@@ -281,4 +281,4 @@ You should see a DynamoDB item with ObjectKey matching the uploaded filename and
 | `AWS_DEFAULT_REGION` | AWS region | `us-east-1` |
 | `AWS_ENDPOINT_URL` | LocalStack endpoint | `http://localhost:4566` |
 
-Never use real AWS credentials in `.env`. The values test/test are intentional for LocalStack.
+Never use real AWS credentials in `.env`. The values test/test are intentional for LocalStack 
