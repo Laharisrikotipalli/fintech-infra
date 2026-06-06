@@ -24,3 +24,6 @@ __pycache__/
 *.egg-info/
 dist/
 build/
+jq.exe
+payment.json
+*.json
