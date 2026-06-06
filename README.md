@@ -3,21 +3,6 @@
 A production-grade Infrastructure as Code project simulating a secure fintech payments backend. Everything runs **locally** via LocalStack — no real AWS account needed.
 
 ---
-
-## Table of Contents
-
-- [Architecture Overview](#architecture-overview)
-- [Project Structure](#project-structure)
-- [Prerequisites](#prerequisites)
-- [Quick Start](#quick-start)
-- [Step-by-Step Setup](#step-by-step-setup)
-- [Terraform Workspaces](#terraform-workspaces)
-- [Compliance Script](#compliance-script)
-- [End-to-End Test](#end-to-end-test)
-- [FAQ & Troubleshooting](#faq--troubleshooting)
-
----
-
 ## Architecture Overview
 
 An event-driven, serverless workflow for processing payment events:
@@ -277,50 +262,6 @@ docker-compose logs localstack | grep "Processed"
 ```
 
 You should see a DynamoDB item with `ObjectKey` matching your uploaded filename and `Status: PROCESSED`.
-
----
-
-## FAQ & Troubleshooting
-
-**Q: `terraform apply` fails with a network error.**
-
-A: Make sure LocalStack is running (`docker ps`) and that your AWS provider configuration in `main.tf` points to `http://localhost:4566`. Also ensure you've sourced the `.env` file.
-
-```bash
-docker-compose up -d
-source .env
-terraform apply -auto-approve
-```
-
-**Q: The Lambda function isn't triggered after uploading a file to S3.**
-
-A: This is often a permissions issue. Check that:
-1. `aws_lambda_permission.allow_s3` exists and has `principal = "s3.amazonaws.com"`
-2. `aws_s3_bucket_notification` uses `events = ["s3:ObjectCreated:*"]` and the correct Lambda ARN
-3. The `depends_on = [aws_lambda_permission.allow_s3]` is set on the notification resource
-
-Inspect LocalStack logs for clues:
-```bash
-docker-compose logs -f localstack
-```
-
-**Q: Why use Terraform workspaces instead of just changing a variable?**
-
-A: Workspaces give each environment its own isolated `terraform.tfstate` file. This means the state of your `dev` environment is completely isolated from `staging`, preventing accidental cross-environment changes.
-
-**Q: Why not use `s3:*` wildcard in the IAM policy?**
-
-A: The Principle of Least Privilege — the Lambda only needs to *read* objects (`s3:GetObject`), not list, delete, or modify the bucket. Using `s3:*` would allow the Lambda to delete all objects or change bucket policies if its code were ever compromised.
-
-**Q: How do I destroy all resources?**
-
-```bash
-terraform workspace select dev
-terraform destroy -auto-approve
-terraform workspace select staging
-terraform destroy -auto-approve
-docker-compose down
-```
 
 ---
 
