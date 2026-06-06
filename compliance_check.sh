@@ -1,19 +1,13 @@
 #!/bin/bash
-# compliance_check.sh
-
-# Fail script on any error
 set -e
-
-# Load environment variables
 if [ -f .env ]; then
   export $(cat .env | sed 's/#.*//g' | xargs)
 fi
 
-WORKSPACE=${1:-dev}  # Default to 'dev' workspace if no argument is provided
+WORKSPACE=${1:-dev} 
 BUCKET_NAME="fintech-payment-events-$WORKSPACE"
 TABLE_NAME="transactions-$WORKSPACE"
 
-# Derive KMS Key ARN via alias lookup, then policy ARN via name pattern
 KEY_ARN=$(aws --endpoint-url="$AWS_ENDPOINT_URL" kms list-aliases | jq -r '.Aliases[] | select(.AliasName=="alias/aws/s3") | .TargetKeyId' | xargs -I {} aws --endpoint-url="$AWS_ENDPOINT_URL" kms describe-key --key-id {} | jq -r '.KeyMetadata.Arn')
 POLICY_ARN=$(aws --endpoint-url="$AWS_ENDPOINT_URL" iam list-policies --scope Local | jq -r --arg WS "$WORKSPACE" '.Policies[] | select(.PolicyName=="lambda-payment-processor-policy-"+$WS) | .Arn')
 
@@ -24,9 +18,6 @@ echo "  KMS ARN: $KEY_ARN"
 echo "  Policy : $POLICY_ARN"
 echo ""
 
-# -----------------------------------------------------------------------
-# Check 1: S3 Public Access Block
-# -----------------------------------------------------------------------
 echo "[CHECK 1] Verifying S3 Public Access Block on bucket: $BUCKET_NAME..."
 PUBLIC_ACCESS_BLOCK=$(aws --endpoint-url="$AWS_ENDPOINT_URL" s3api get-public-access-block --bucket "$BUCKET_NAME")
 
@@ -40,9 +31,6 @@ else
     exit 1
 fi
 
-# -----------------------------------------------------------------------
-# Check 2: S3 Encryption
-# -----------------------------------------------------------------------
 echo "[CHECK 2] Verifying S3 Encryption on bucket: $BUCKET_NAME..."
 BUCKET_ENCRYPTION=$(aws --endpoint-url="$AWS_ENDPOINT_URL" s3api get-bucket-encryption --bucket "$BUCKET_NAME")
 SSE_ALGORITHM=$(echo "$BUCKET_ENCRYPTION" | jq -r '.ServerSideEncryptionConfiguration.Rules[0].ApplyServerSideEncryptionByDefault.SSEAlgorithm')
@@ -54,9 +42,6 @@ else
     exit 1
 fi
 
-# -----------------------------------------------------------------------
-# Check 3: DynamoDB Encryption
-# -----------------------------------------------------------------------
 echo "[CHECK 3] Verifying DynamoDB Encryption on table: $TABLE_NAME..."
 TABLE_DESCRIPTION=$(aws --endpoint-url="$AWS_ENDPOINT_URL" dynamodb describe-table --table-name "$TABLE_NAME")
 SSE_STATUS=$(echo "$TABLE_DESCRIPTION" | jq -r '.Table.SSEDescription.Status')
@@ -68,14 +53,10 @@ else
     exit 1
 fi
 
-# -----------------------------------------------------------------------
-# Check 4: IAM Policy for Wildcard Actions
-# -----------------------------------------------------------------------
 echo "[CHECK 4] Verifying IAM policy for wildcard actions..."
 POLICY_VERSION=$(aws --endpoint-url="$AWS_ENDPOINT_URL" iam get-policy --policy-arn "$POLICY_ARN" | jq -r '.Policy.DefaultVersionId')
 POLICY_DOC=$(aws --endpoint-url="$AWS_ENDPOINT_URL" iam get-policy-version --policy-arn "$POLICY_ARN" --version-id "$POLICY_VERSION")
 
-# Filter out the acceptable CloudWatch wildcard
 ALLOWED_WILDCARD="logs:*"
 WILDCARD_ACTIONS=$(echo "$POLICY_DOC" | jq -r '.PolicyVersion.Document.Statement[].Action | if type=="array" then .[] else . end | select(contains("*"))')
 FILTERED_WILDCARDS=$(echo "$WILDCARD_ACTIONS" | grep -v "$ALLOWED_WILDCARD" || true)

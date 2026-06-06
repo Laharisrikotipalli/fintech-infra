@@ -1,5 +1,3 @@
-# main.tf
-
 terraform {
   required_providers {
     aws = {
@@ -28,9 +26,6 @@ provider "aws" {
   }
 }
 
-# -----------------------------------------------------------------------
-# 1. KMS Key
-# -----------------------------------------------------------------------
 resource "aws_kms_key" "fintech_key" {
   description             = "KMS key for fintech app data encryption"
   deletion_window_in_days = 7
@@ -42,9 +37,6 @@ resource "aws_kms_alias" "fintech_key_alias" {
   target_key_id = aws_kms_key.fintech_key.key_id
 }
 
-# -----------------------------------------------------------------------
-# 2. S3 Bucket with versioning, encryption, and public access block
-# -----------------------------------------------------------------------
 resource "aws_s3_bucket" "payment_events" {
   bucket = "fintech-payment-events-${terraform.workspace}"
 }
@@ -76,9 +68,7 @@ resource "aws_s3_bucket_public_access_block" "pab" {
   restrict_public_buckets = true
 }
 
-# -----------------------------------------------------------------------
-# 3. DynamoDB Table with KMS encryption
-# -----------------------------------------------------------------------
+
 resource "aws_dynamodb_table" "transactions" {
   name         = "transactions-${terraform.workspace}"
   billing_mode = "PAY_PER_REQUEST"
@@ -95,9 +85,7 @@ resource "aws_dynamodb_table" "transactions" {
   }
 }
 
-# -----------------------------------------------------------------------
-# 4. IAM Role and Least-Privilege Policy for Lambda
-# -----------------------------------------------------------------------
+
 data "aws_iam_policy_document" "lambda_assume_role_policy" {
   statement {
     actions = ["sts:AssumeRole"]
@@ -125,19 +113,17 @@ data "aws_iam_policy_document" "lambda_permissions" {
     resources = ["arn:aws:logs:*:*:*"]
   }
 
-  # S3 read permission for the specific bucket
   statement {
     actions   = ["s3:GetObject"]
     resources = ["${aws_s3_bucket.payment_events.arn}/*"]
   }
 
-  # DynamoDB write permission for the specific table
   statement {
     actions   = ["dynamodb:PutItem"]
     resources = [aws_dynamodb_table.transactions.arn]
   }
 
-  # KMS decrypt permission for the specific key
+
   statement {
     actions   = ["kms:Decrypt", "kms:GenerateDataKey"]
     resources = [aws_kms_key.fintech_key.arn]
@@ -154,9 +140,6 @@ resource "aws_iam_role_policy_attachment" "attach_lambda_policy" {
   policy_arn = aws_iam_policy.lambda_policy.arn
 }
 
-# -----------------------------------------------------------------------
-# 5. Lambda Function and S3 Trigger
-# -----------------------------------------------------------------------
 data "archive_file" "lambda_zip" {
   type        = "zip"
   source_file = "${path.module}/src/process_payment.py"
